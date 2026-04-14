@@ -1,0 +1,7 @@
+func checkBalance(b, w)
+    given b > w
+{
+    res = b - w;
+    return res;
+}
+    ensure res > 0

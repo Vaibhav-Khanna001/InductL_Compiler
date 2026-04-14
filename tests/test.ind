@@ -1,0 +1,7 @@
+func calculate(balance, debt)
+    given balance > 0
+{
+    remaining = balance - debt;
+    return remaining;
+}
+    ensure remaining >= 0
