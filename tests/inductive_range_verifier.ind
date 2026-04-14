@@ -1,0 +1,8 @@
+func verifyMath(x, y)
+    given x > 1000
+{
+    y = x + 500;
+    z = y * 2;
+    return z;
+}
+    ensure z > 3000

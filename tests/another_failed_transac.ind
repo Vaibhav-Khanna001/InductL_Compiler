@@ -1,0 +1,12 @@
+func processTax(balance)
+    given balance > 1000
+{
+    // A 20% tax is applied
+    taxRate = 0.20;
+    taxAmount = balance * taxRate;
+    balance = balance - taxAmount;
+
+    return balance;
+}
+    // We want to ensure the balance never drops below 900
+    ensure balance > 5000

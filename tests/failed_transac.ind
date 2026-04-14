@@ -1,0 +1,11 @@
+func riskyWithdrawal(balance)
+    given balance > 1000
+{
+    // The programmer tries to subtract 600
+    withdrawal = 600;
+    balance = balance - withdrawal;
+    
+    return balance;
+}
+    // The compiler will check if this is ALWAYS true
+    ensure balance > 1000
