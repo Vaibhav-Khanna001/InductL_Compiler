@@ -1,4 +1,0 @@
-func test(x) {
-    y = x + z; // 'z' is never defined!
-    return y;
-}

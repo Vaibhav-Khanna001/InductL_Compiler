@@ -1,8 +1,0 @@
-func process(x, y)
-    given x > 0
-{
-    a = x + 5;
-    b = a * y;
-    return b;
-}
-    ensure b > x

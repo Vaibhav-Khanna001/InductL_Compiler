@@ -1,0 +1,19 @@
+func calculateBonus(balance, performance)
+    given balance > 1000
+    given performance > 5
+{
+    bonus = 0;
+    
+    if (performance > 8) {
+        bonus = balance * 0.10;
+    }
+
+    count = 0;
+    while (count < 3) {
+        balance = balance + bonus;
+        count = count + 1;
+    }
+
+    return balance;
+}
+    ensure balance > 1000

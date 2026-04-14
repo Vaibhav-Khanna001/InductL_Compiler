@@ -20,6 +20,7 @@ void yyerror(const char *s);
     ASTNode* node;
     std::vector<ASTNode*>* nodeList;
     std::vector<std::string>* strList;
+    std::vector<ConditionNode*>* condList;
 }
 
 /* Define Tokens from Lexer */
@@ -32,9 +33,11 @@ void yyerror(const char *s);
 %token LPAREN RPAREN LBRACE RBRACE COMMA SEMICOLON
 
 /* Define Types for Non-terminals (Rules) */
-%type <node> program statement expression function_def condition_block if_stmt while_stmt assignment return_stmt
+%type <node> program statement expression function_def if_stmt while_stmt assignment return_stmt
 %type <nodeList> statement_list body_content
 %type <strList> param_list
+/* New types for lists of conditions */
+%type <condList> preconditions postconditions
 
 /* Operator Precedence (Standard C-style) */
 %left EQ_OP NE_OP LT_OP GT_OP LE_OP GE_OP
@@ -50,39 +53,58 @@ program:
 
 function_def:
     FUNC_KWD IDENTIFIER LPAREN param_list RPAREN 
-    condition_block 
+    preconditions 
     LBRACE body_content RBRACE 
-    condition_block
+    postconditions
     {
         FunctionNode* func = new FunctionNode(*$2, *$4);
         
-        // Add Pre-conditions (from the first condition_block)
-        // Note: For simplicity, we'll assume the first block is 'given' 
-        // and the second is 'ensure'.
-        if ($6) func->addPre(dynamic_cast<ConditionNode*>($6));
-        
-        // Add Body Statements
-        for (auto stmt : *$8) {
-            func->addStmt(stmt);
+        // Add all Pre-conditions collected in the list
+        if ($6) {
+            for (auto pre : *$6) func->addPre(pre);
+            delete $6;
         }
         
-        // Add Post-conditions (from the second condition_block)
-        if ($10) func->addPost(dynamic_cast<ConditionNode*>($10));
+        // Add Body Statements
+        if ($8) {
+            for (auto stmt : *$8) func->addStmt(stmt);
+            delete $8;
+        }
+        
+        // Add all Post-conditions collected in the list
+        if ($10) {
+            for (auto post : *$10) func->addPost(post);
+            delete $10;
+        }
         
         $$ = func;
     }
+    ;
+
+/* Recursive list to handle zero, one, or multiple GIVEN statements */
+preconditions:
+    /* empty */ { $$ = new std::vector<ConditionNode*>(); }
+    | preconditions GIVEN_KWD expression 
+      { 
+        $1->push_back(new ConditionNode("given", $3)); 
+        $$ = $1; 
+      }
+    ;
+
+/* Recursive list to handle zero, one, or multiple ENSURE statements */
+postconditions:
+    /* empty */ { $$ = new std::vector<ConditionNode*>(); }
+    | postconditions ENSURE_KWD expression 
+      { 
+        $1->push_back(new ConditionNode("ensure", $3)); 
+        $$ = $1; 
+      }
     ;
 
 param_list:
     /* empty */ { $$ = new std::vector<std::string>(); }
     | IDENTIFIER { $$ = new std::vector<std::string>(); $$->push_back(*$1); }
     | param_list COMMA IDENTIFIER { $1->push_back(*$3); $$ = $1; }
-    ;
-
-condition_block:
-    /* empty */ { $$ = nullptr; }
-    | GIVEN_KWD expression { $$ = new ConditionNode("given", $2); }
-    | ENSURE_KWD expression { $$ = new ConditionNode("ensure", $2); }
     ;
 
 body_content:
@@ -128,11 +150,16 @@ expression:
     | expression SLASH expression { $$ = new BinaryOpNode("/", $1, $3); }
     | expression GT_OP expression { $$ = new BinaryOpNode(">", $1, $3); }
     | expression LT_OP expression { $$ = new BinaryOpNode("<", $1, $3); }
+    | expression GE_OP expression { $$ = new BinaryOpNode(">=", $1, $3); }
+    | expression LE_OP expression { $$ = new BinaryOpNode("<=", $1, $3); }
+    | expression EQ_OP expression { $$ = new BinaryOpNode("==", $1, $3); }
+    | expression NE_OP expression { $$ = new BinaryOpNode("!=", $1, $3); }
     | LPAREN expression RPAREN { $$ = $2; }
     ;
 
 %%
 
 void yyerror(const char *s) {
-    std::cerr << "Syntax Error at line " << line_num << ": " << s << std::endl;
+    extern char* yytext;
+    std::cerr << "Syntax Error at line " << line_num << ": " << s << " (unexpected '" << yytext << "')" << std::endl;
 }
