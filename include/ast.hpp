@@ -4,15 +4,21 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <stdexcept>
+#include "symbol_table.hpp"
 
-// Base class for all nodes in the Abstract Syntax Tree
+// Professional Type System Enum
+enum class DataType { NUMBER, STRING, BOOLEAN, VOID, ERROR };
+
 class ASTNode {
 public:
     virtual ~ASTNode() = default;
-    virtual void print(int indent) const = 0; 
+    virtual void print(int indent) const = 0;
+    virtual void analyze(SymbolTable& st) = 0;
+    virtual DataType getType() const = 0; // Ensures type safety
 };
 
-// --- EXPRESSIONS (Things that return a value) ---
+// --- EXPRESSIONS ---
 
 class NumberNode : public ASTNode {
     double value;
@@ -22,6 +28,8 @@ public:
         for(int i=0; i<indent; i++) std::cout << "  ";
         std::cout << "[Literal: " << value << "]" << std::endl;
     }
+    void analyze(SymbolTable& st) override {} // Literals are always valid
+    DataType getType() const override { return DataType::NUMBER; }
 };
 
 class VariableNode : public ASTNode {
@@ -32,6 +40,12 @@ public:
         for(int i=0; i<indent; i++) std::cout << "  ";
         std::cout << "[Variable: " << name << "]" << std::endl;
     }
+    void analyze(SymbolTable& st) override {
+        if (!st.lookup(name)) {
+            throw std::runtime_error("Semantic Error: Variable '" + name + "' used before declaration.");
+        }
+    }
+    DataType getType() const override { return DataType::NUMBER; } // For now, all variables are numbers
 };
 
 class BinaryOpNode : public ASTNode {
@@ -45,9 +59,24 @@ public:
         left->print(indent + 1);
         right->print(indent + 1);
     }
+    void analyze(SymbolTable& st) override {
+        left->analyze(st);
+        right->analyze(st);
+
+        // Pro-Level Type Check: Ensure both sides are numeric for arithmetic
+        if (left->getType() != DataType::NUMBER || right->getType() != DataType::NUMBER) {
+            throw std::runtime_error("Type Mismatch: Operator '" + op + "' requires numeric operands.");
+        }
+    }
+    DataType getType() const override {
+        // Comparison operators return boolean logic, others return numbers
+        if (op == ">" || op == "<" || op == "==" || op == ">=" || op == "<=") 
+            return DataType::BOOLEAN;
+        return DataType::NUMBER;
+    }
 };
 
-// --- STATEMENTS (Actions/Control Flow) ---
+// --- STATEMENTS ---
 
 class AssignmentNode : public ASTNode {
     std::string varName;
@@ -59,32 +88,87 @@ public:
         std::cout << "[Assign: " << varName << " = ]" << std::endl;
         value->print(indent + 1);
     }
+    void analyze(SymbolTable& st) override {
+        value->analyze(st);
+        
+        // Logical Polish: If not in scope, initialize it. If it is, ensure types match.
+        if (!st.lookup(varName)) {
+            st.declare(varName, "number", 0);
+        } else {
+            // Future: Check if updating a 'number' with a 'string'
+            if (value->getType() != DataType::NUMBER) {
+                throw std::runtime_error("Type Mismatch: Cannot assign non-number to '" + varName + "'.");
+            }
+        }
+    }
+    DataType getType() const override { return DataType::VOID; }
+};
+
+class BlockNode : public ASTNode {
+    std::vector<ASTNode*> statements;
+public:
+    // This constructor takes the raw vector pointer from Bison
+    BlockNode(std::vector<ASTNode*>* stmts) {
+        if (stmts) {
+            statements = *stmts;
+            delete stmts; // Clean up the vector pointer to prevent memory leaks
+        }
+    }
+    void print(int indent) const override {
+        for (auto s : statements) s->print(indent);
+    }
+    void analyze(SymbolTable& st) override {
+        for (auto s : statements) s->analyze(st);
+    }
+    DataType getType() const override { return DataType::VOID; }
 };
 
 class IfNode : public ASTNode {
-    ASTNode *condition, *thenBranch, *elseBranch;
+    ASTNode *condition;
+    BlockNode *thenBranch;
 public:
-    IfNode(ASTNode* cond, ASTNode* thenB, ASTNode* elseB = nullptr) 
-        : condition(cond), thenBranch(thenB), elseBranch(elseB) {}
+    // Note: The second argument is exactly what Bison ($6) provides
+    IfNode(ASTNode* cond, std::vector<ASTNode*>* thenB) 
+        : condition(cond), thenBranch(new BlockNode(thenB)) {}
+
     void print(int indent) const override {
         for(int i=0; i<indent; i++) std::cout << "  ";
         std::cout << "[If]" << std::endl;
         condition->print(indent + 1);
         thenBranch->print(indent + 1);
-        if(elseBranch) elseBranch->print(indent + 1);
     }
+    void analyze(SymbolTable& st) override {
+        condition->analyze(st);
+        if (condition->getType() != DataType::BOOLEAN) {
+            throw std::runtime_error("Semantic Error: 'if' condition must be boolean.");
+        }
+        st.enterScope();
+        thenBranch->analyze(st);
+        st.exitScope();
+    }
+    DataType getType() const override { return DataType::VOID; }
 };
 
 class WhileNode : public ASTNode {
-    ASTNode *condition, *body;
+    ASTNode *condition;
+    BlockNode *body;
 public:
-    WhileNode(ASTNode* cond, ASTNode* b) : condition(cond), body(b) {}
+    WhileNode(ASTNode* cond, std::vector<ASTNode*>* b) 
+        : condition(cond), body(new BlockNode(b)) {}
+
     void print(int indent) const override {
         for(int i=0; i<indent; i++) std::cout << "  ";
-        std::cout << "[While Loop]" << std::endl;
+        std::cout << "[While]" << std::endl;
         condition->print(indent + 1);
         body->print(indent + 1);
     }
+    void analyze(SymbolTable& st) override {
+        condition->analyze(st);
+        st.enterScope();
+        body->analyze(st);
+        st.exitScope();
+    }
+    DataType getType() const override { return DataType::VOID; }
 };
 
 class ReturnNode : public ASTNode {
@@ -96,12 +180,16 @@ public:
         std::cout << "[Return]" << std::endl;
         value->print(indent + 1);
     }
+    void analyze(SymbolTable& st) override {
+        value->analyze(st);
+    }
+    DataType getType() const override { return value->getType(); }
 };
 
-// --- INDUCTIVE NOVELTY NODES ---
+// --- INDUCTIVE NOVELTY ---
 
 class ConditionNode : public ASTNode {
-    std::string type; // "given" or "ensure"
+    std::string type;
     ASTNode* condition;
 public:
     ConditionNode(std::string type, ASTNode* cond) : type(type), condition(cond) {}
@@ -110,6 +198,13 @@ public:
         std::cout << "Contract [" << type << "]:" << std::endl;
         condition->print(indent + 1);
     }
+    void analyze(SymbolTable& st) override {
+        condition->analyze(st);
+        if (condition->getType() != DataType::BOOLEAN) {
+            throw std::runtime_error("Contract Error: '" + type + "' must be a logical comparison.");
+        }
+    }
+    DataType getType() const override { return DataType::VOID; }
 };
 
 class FunctionNode : public ASTNode {
@@ -126,12 +221,27 @@ public:
     void addPost(ConditionNode* c) { postconditions.push_back(c); }
 
     void print(int indent) const override {
-        std::cout << "Function Definition: " << name << std::endl;
+        std::cout << "Function: " << name << std::endl;
         for(auto p : preconditions) p->print(indent + 1);
-        std::cout << "  Implementation Body:" << std::endl;
         for(auto s : body) s->print(indent + 2);
         for(auto p : postconditions) p->print(indent + 1);
     }
+
+    void analyze(SymbolTable& st) override {
+        st.enterScope();
+        // Register parameters
+        for (const auto& p : params) {
+            st.declare(p, "number", 0);
+        }
+        // Analyze logic and body
+        for (auto p : preconditions) p->analyze(st);
+        for (auto s : body) s->analyze(st);
+        for (auto p : postconditions) p->analyze(st);
+        st.exitScope();
+    }
+    DataType getType() const override { return DataType::VOID; }
 };
+
+
 
 #endif

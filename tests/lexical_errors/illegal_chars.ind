@@ -1,0 +1,5 @@
+func test(x) {
+    y = x @ 10;  // Error: '@' is not a valid operator in InductL
+    # This is not a valid comment style in our lexer
+    return y;
+}

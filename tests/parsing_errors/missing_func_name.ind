@@ -1,0 +1,3 @@
+func (x, y) { // Error: Expected a name between 'func' and '('
+    return x + y;
+}

@@ -29,12 +29,30 @@ int main(int argc, char** argv) {
     // Start parsing
     int result = yyparse();
 
+    // 2. Check if parsing was successful before doing anything else
     if (result == 0 && root != nullptr) {
-        std::cout << "--- Parse Successful! AST Output: ---" << std::endl;
-        // This prints the entire tree structure starting from the root
-        root->print(0);
+        std::cout << "--- Parse Successful! ---" << std::endl;
+
+        // 3. Now start Semantic Analysis
+        try {
+            SymbolTable st;
+            std::cout << "--- Starting Semantic Analysis ---" << std::endl;
+            root->analyze(st); 
+            std::cout << "--- Semantic Analysis Successful! ---" << std::endl;
+            
+            // 4. If semantics are good, print the tree or move to codegen
+            std::cout << "--- AST Output: ---" << std::endl;
+            root->print(0);
+
+        } catch (const std::exception& e) {
+            // Using a try-catch is a professional way to handle semantic errors
+            // without just crashing the whole program.
+            std::cerr << "Semantic Error: " << e.what() << std::endl;
+            fclose(infile);
+            return 1;
+        }
     } else {
-        std::cerr << "--- Parse Failed ---" << std::endl;
+        std::cerr << "--- Parse Failed (Syntax Error) ---" << std::endl;
     }
 
     fclose(infile);

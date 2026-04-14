@@ -1,0 +1,5 @@
+func test(x) 
+{
+    given x > 0 // Error: 'given' belongs outside the function body in our grammar
+    return x;
+}

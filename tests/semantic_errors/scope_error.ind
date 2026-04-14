@@ -1,0 +1,6 @@
+func test(x) {
+    if (x > 0) {
+        temp = 100;
+    }
+    return temp; // Error: temp was defined in the 'if' scope
+}

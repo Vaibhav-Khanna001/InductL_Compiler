@@ -1,0 +1,5 @@
+func test(x)
+    given x + 10  // Error: This is a number, not a boolean comparison
+{
+    return x;
+}

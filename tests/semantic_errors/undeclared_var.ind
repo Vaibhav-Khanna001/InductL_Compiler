@@ -1,0 +1,4 @@
+func test(x) {
+    y = x + z; // z is not defined
+    return y;
+}

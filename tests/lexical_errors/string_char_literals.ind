@@ -1,0 +1,4 @@
+func test(x) {
+    y = "hello"; // Error: '"' will be an unrecognized character
+    return x;
+}

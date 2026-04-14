@@ -1,0 +1,3 @@
+func 123test(x) { // Error: '123test' will likely be lexed as '123' and 'test'
+    return x;
+}

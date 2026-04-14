@@ -107,19 +107,12 @@ assignment:
 
 if_stmt:
     IF_KWD LPAREN expression RPAREN LBRACE statement_list RBRACE
-    { 
-        // We create an IfNode. For now, we'll pass nullptr for the 'else' branch
-        $$ = new IfNode($3, new AssignmentNode("dummy", nullptr), nullptr); 
-    }
+    { $$ = new IfNode($3, $6); }
     ;
 
 while_stmt:
     WHILE_KWD LPAREN expression RPAREN LBRACE statement_list RBRACE
-    { 
-        // Note: You might need to update your WhileNode constructor in ast.hpp 
-        // to take a vector or a single BlockNode.
-        $$ = new WhileNode($3, new AssignmentNode("dummy", nullptr)); 
-    }
+    { $$ = new WhileNode($3, $6); }
     ;
 
 return_stmt:

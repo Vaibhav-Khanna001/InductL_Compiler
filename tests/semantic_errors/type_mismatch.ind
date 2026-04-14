@@ -1,0 +1,6 @@
+func test(x) {
+    if (x + 5) { // Error: Condition must be boolean (e.g., x + 5 > 0)
+        x = 10;
+    }
+    return x;
+}

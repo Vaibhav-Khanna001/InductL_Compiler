@@ -1,0 +1,4 @@
+func test(x) {
+    a = x + 10  // Error: Semicolon missing here
+    return a;
+}

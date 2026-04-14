@@ -1,8 +1,4 @@
-func process(x, y)
-    given x > 0
-{
-    a = x + 5;
-    b = a * y;
-    return b;
+func test(x) {
+    y = x + z; // 'z' is never defined!
+    return y;
 }
-    ensure b > x
