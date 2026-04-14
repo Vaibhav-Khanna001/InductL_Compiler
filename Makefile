@@ -1,3 +1,6 @@
+# This file helps to orchestrate all the required files
+
+
 # Compiler and Flags
 CXX = g++
 CXXFLAGS = -std=c++17 -Iinclude -Wno-write-strings

@@ -1,0 +1,3 @@
+func bad() {
+    x = 10  // Missing semicolon here!
+}

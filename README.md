@@ -65,3 +65,80 @@ Teach students to reason about edge cases — like division by zero or overflow 
 | Logic violations | Silent bugs or exceptions | Explicit, named error |
 
 ---
+
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+Open **MSYS2 MinGW64** and install the required tools:
+
+```bash
+pacman -S mingw-w64-x86_64-gcc flex bison make
+```
+
+### Build
+
+```bash
+make
+```
+
+This runs the `Makefile`, which orchestrates the full compilation pipeline:
+
+1. **Flex** processes the `.l` lexer file → generates a C tokenizer (`lex.yy.c`)
+2. **Bison** processes the `.y` grammar file → generates a C parser (`parser.tab.c` + `parser.tab.h`)
+3. **g++** compiles all generated C/C++ files → produces the `inductl` executable
+
+### Run
+
+```bash
+./inductl <your_file>
+```
+
+**Example:**
+
+```bash
+./inductl test_file.inductL
+```
+
+The compiler will parse your file, validate all `ensure` contracts against the function logic, and either produce output or raise a **Logic Violation** error if a contract is breached.
+
+---
+
+## Under the Hood
+
+InductL's compiler is built on a classical compiler pipeline extended with a contract validation phase.
+
+```
+Source File (.inductL)
+        │
+        ▼
+  ┌───────────┐
+  │   Lexer   │  (Flex)   — Tokenizes raw source into symbols
+  └─────┬─────┘
+        │
+        ▼
+  ┌───────────┐
+  │  Parser   │  (Bison)  — Builds an Abstract Syntax Tree (AST)
+  └─────┬─────┘
+        │
+        ▼
+  ┌──────────────────┐
+  │ Contract Checker │  (Custom) — Validates ensure statements against logic
+  └─────┬────────────┘
+        │
+   ┌────┴─────┐
+   ▼          ▼
+Output    Logic Violation Error
+```
+
+**Lexer (Flex)**
+Reads the raw source file character by character and converts it into a stream of tokens — keywords like `fn` and `ensure`, identifiers, operators, and literals.
+
+**Parser (Bison)**
+Consumes the token stream and applies the grammar rules of InductL to build an Abstract Syntax Tree (AST) — a structured, in-memory representation of your program.
+
+**Contract Checker**
+The core innovation. Walks the AST and, for each function, checks whether any execution path can violate the `ensure` postconditions. If a contradiction is found, it raises a **Logic Violation** error and halts — no executable is produced.
